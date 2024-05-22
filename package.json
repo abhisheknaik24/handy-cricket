@@ -5,14 +5,13 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "pm2 start ecosystem.config.js",
     "lint": "next lint",
     "postinstall": "prisma generate",
     "postgenerate": "prisma db push --accept-data-loss"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.0",
-    "@prisma/client": "^5.14.0",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-label": "^2.0.2",
@@ -43,7 +42,6 @@
     "eslint": "^8",
     "eslint-config-next": "14.2.3",
     "postcss": "^8",
-    "prisma": "^5.14.0",
     "tailwindcss": "^3.4.3",
     "typescript": "^5"
   }

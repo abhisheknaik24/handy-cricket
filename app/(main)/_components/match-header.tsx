@@ -1,6 +1,7 @@
-import { updateSkip } from '@/actions/updateSkip';
+import { patchAPI } from '@/actions/actions';
 import { queryClient } from '@/components/providers/query-provider';
 import { Button } from '@/components/ui/button';
+import { useMutation } from '@tanstack/react-query';
 import { ChevronLeftIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -24,23 +25,28 @@ export const MatchHeader = ({
 }: Props) => {
   const params = useParams();
 
-  const handleSkipClick = async () => {
-    try {
-      const res = await updateSkip({
-        tournamentId: params.tournamentId as string,
-        matchId: params.matchId as string,
-      });
-
-      if (!res.status) {
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      patchAPI(
+        `/api/matches/patchSkip/${params.tournamentId}/${params.matchId}`,
+        data
+      ),
+    onSuccess: (res) => {
+      if (!res.success) {
         return toast.error(res.message);
       }
 
       toast.success(res.message);
 
       queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast.error(error.message);
-    }
+    },
+  });
+
+  const handleSkipClick = async () => {
+    mutation.mutate({});
   };
 
   return (

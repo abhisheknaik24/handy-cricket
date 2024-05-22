@@ -1,4 +1,5 @@
-import { deleteTournament } from '@/actions/deleteTournament';
+import { deleteAPI } from '@/actions/actions';
+import { Loader } from '@/components/loader/loader';
 import { queryClient } from '@/components/providers/query-provider';
 import {
   AlertDialog,
@@ -12,6 +13,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useModal } from '@/hooks/use-modal-store';
+import { useMutation } from '@tanstack/react-query';
 import { EditIcon, Trash2Icon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -26,25 +28,36 @@ type Props = {
 export const TournamentCard = ({ id, image, name }: Props) => {
   const { onOpen } = useModal();
 
-  const handleTournamentDeleteClick = async (id: string) => {
-    try {
-      const res = await deleteTournament({
-        tournamentId: id,
-      });
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      deleteAPI(`/api/tournaments/${data?.tournamentId}`),
+    onSuccess: (res) => {
+      if (!res.success) {
+        return toast.error(res.message);
+      }
 
       toast.success(res.message);
 
       queryClient.invalidateQueries({ queryKey: ['tournaments'] });
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast.error(error.message);
-    }
+    },
+  });
+
+  const handleTournamentDeleteClick = async (id: string) => {
+    mutation.mutate({ tournamentId: id });
   };
+
+  if (mutation.isPending) {
+    return <Loader />;
+  }
 
   return (
     <AlertDialog>
-      <div className='relative p-4 shadow-sm bg-secondary/50 rounded-xl min-h-60'>
+      <div className='relative p-4 shadow-sm bg-neutral-800 rounded-xl min-h-60'>
         <Link href={`/${id}/all`}>
-          <div className='relative w-full h-60 md:h-40'>
+          <div className='relative w-full h-40'>
             <Image
               src={image}
               className='object-cover rounded-sm'
@@ -52,11 +65,11 @@ export const TournamentCard = ({ id, image, name }: Props) => {
               fill
             />
           </div>
-          <h3 className='mt-2 font-semibold uppercase truncate text-muted-foreground'>
+          <h3 className='mt-2 text-sm font-semibold uppercase truncate text-neutral-300'>
             {name}
           </h3>
         </Link>
-        <div className='absolute bottom-2 right-2 text-secondary-foreground/50 flex items-center gap-2'>
+        <div className='absolute flex items-center gap-2 bottom-2 right-2 text-neutral-300'>
           <EditIcon
             size={20}
             role='button'

@@ -1,3 +1,4 @@
+import { getAPI } from '@/actions/actions';
 import { Loader } from '@/components/loader/loader';
 import {
   Table,
@@ -7,17 +8,30 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useGetPointsTable } from '@/hooks/useGetPointsTable';
 import { cn } from '@/lib/utils';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
 
 export const PointsTable = () => {
-  const { data: res, isLoading } = useGetPointsTable();
+  const params = useParams();
+
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['pointsTable'],
+    queryFn: () =>
+      getAPI(
+        `/api/tournaments/getTournamentPointsTable/${params.tournamentId}`
+      ),
+  });
 
   if (isLoading) {
     return <Loader />;
   }
 
-  if (!res?.data?.pointsTable?.length) {
+  if (isError || !res?.data?.pointsTable?.length) {
     return null;
   }
 

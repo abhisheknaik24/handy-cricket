@@ -1,6 +1,8 @@
-import { updatePlayerTeam } from '@/actions/updatePlayerTeam';
+import { patchAPI } from '@/actions/actions';
+import { Loader } from '@/components/loader/loader';
 import { queryClient } from '@/components/providers/query-provider';
 import { cn } from '@/lib/utils';
+import { useMutation } from '@tanstack/react-query';
 import { CoinsIcon, UserCircle2Icon } from 'lucide-react';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -35,29 +37,37 @@ export const TeamDetails = ({
 }: Props) => {
   const params = useParams();
 
-  const handleSelectYourTeamClick = async (playerTeamId: string) => {
-    try {
-      if (!playerTeamId?.length) {
-        return toast.error('Please select you team!');
-      }
-
-      const res = await updatePlayerTeam({
-        tournamentId: params.tournamentId as string,
-        matchId: params.matchId as string,
-        playerTeamId: playerTeamId,
-      });
-
-      if (!res.status) {
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      patchAPI(
+        `/api/matches/patchPlayer/${params.tournamentId}/${params.matchId}`,
+        data
+      ),
+    onSuccess: (res) => {
+      if (!res.success) {
         return toast.error(res.message);
       }
 
       toast.success(res.message);
 
       queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast.error(error.message);
+    },
+  });
+
+  const handleSelectYourTeamClick = async (playerTeamId: string) => {
+    if (!playerTeamId?.length) {
+      return toast.error('Please select you team!');
     }
+
+    mutation.mutate({ playerTeamId });
   };
+
+  if (mutation.isPending) {
+    return <Loader />;
+  }
 
   return (
     <div className='flex flex-col items-center justify-center gap-4'>

@@ -1,20 +1,32 @@
+import { getAPI } from '@/actions/actions';
 import { Loader } from '@/components/loader/loader';
-import { useGetMatches } from '@/hooks/useGetMatches';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
 import { MatchCard } from './match-card';
 
 export const Matches = () => {
-  const { data: res, isLoading } = useGetMatches();
+  const params = useParams();
+
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['matches'],
+    queryFn: () =>
+      getAPI(`/api/matches/${params.tournamentId}/${params.teamId}`),
+  });
 
   if (isLoading) {
     return <Loader />;
   }
 
-  if (!res?.data?.matches?.length) {
+  if (isError || !res?.data?.matches?.length) {
     return null;
   }
 
   return (
-    <div className='grid grid-cols-1 md:grid-cols-2 gap-2 mt-4'>
+    <div className='grid grid-cols-1 gap-2 mt-4 md:grid-cols-2'>
       {res?.data?.matches?.map((match: any) => (
         <MatchCard
           key={match?.id}

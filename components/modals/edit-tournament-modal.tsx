@@ -1,6 +1,6 @@
 'use client';
 
-import { updateTournament } from '@/actions/updateTournament';
+import { patchAPI } from '@/actions/actions';
 import {
   Dialog,
   DialogContent,
@@ -9,10 +9,12 @@ import {
 } from '@/components/ui/dialog';
 import { useModal } from '@/hooks/use-modal-store';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation } from '@tanstack/react-query';
 import { memo, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import * as z from 'zod';
+import { Loader } from '../loader/loader';
 import { queryClient } from '../providers/query-provider';
 import { Button } from '../ui/button';
 import {
@@ -40,6 +42,27 @@ export const EditTournamentModal = memo(function EditTournamentModal() {
 
   const isModalOpen = isOpen && type === 'editTournament';
 
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      patchAPI(`/api/tournaments/${tournament.id}`, data),
+    onSuccess: (res) => {
+      if (!res.success) {
+        return toast.error(res.message);
+      }
+
+      toast.success(res.message);
+
+      form.reset();
+
+      queryClient.invalidateQueries({ queryKey: ['tournaments'] });
+
+      onClose();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -51,26 +74,7 @@ export const EditTournamentModal = memo(function EditTournamentModal() {
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      const res = await updateTournament({
-        ...values,
-        tournamentId: tournament.id as string,
-      });
-
-      if (!res.status) {
-        return toast.error(res.message);
-      }
-
-      toast.success(res.message);
-
-      form.reset();
-
-      queryClient.invalidateQueries({ queryKey: ['tournaments'] });
-
-      onClose();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+    mutation.mutate(values);
   };
 
   useEffect(() => {
@@ -80,6 +84,10 @@ export const EditTournamentModal = memo(function EditTournamentModal() {
       form.setValue('name', tournament.name);
     }
   }, [form, tournament]);
+
+  if (mutation.isPending) {
+    return <Loader />;
+  }
 
   if (!isModalOpen) {
     return null;
