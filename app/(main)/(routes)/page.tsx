@@ -1,18 +1,30 @@
 'use client';
 
+import { getAPI } from '@/actions/actions';
 import { Loader } from '@/components/loader/loader';
 import { useModal } from '@/hooks/use-modal-store';
-import { useGetTournaments } from '@/hooks/useGetTournaments';
+import { useQuery } from '@tanstack/react-query';
 import { PlusIcon } from 'lucide-react';
 import { TournamentCard } from '../_components/tournament-card';
 
 const TournamentPage = () => {
   const { onOpen } = useModal();
 
-  const { data: res, isLoading } = useGetTournaments();
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['tournaments'],
+    queryFn: () => getAPI('/api/tournaments'),
+  });
 
   if (isLoading) {
     return <Loader />;
+  }
+
+  if (isError) {
+    return null;
   }
 
   return (
@@ -27,7 +39,7 @@ const TournamentPage = () => {
           <PlusIcon className='w-5 h-5 text-muted-foreground' />
         </div>
       </div>
-      <div className='grid grid-cols-1 md:grid-cols-5 gap-2 mt-4'>
+      <div className='grid grid-cols-2 gap-2 mt-4 md:grid-cols-5'>
         {!!res?.data?.tournaments?.length &&
           res?.data?.tournaments?.map((tournament: any) => (
             <TournamentCard

@@ -1,48 +1,62 @@
 'use client';
 
-import { updateRun } from '@/actions/updateRun';
+import { getAPI, postAPI } from '@/actions/actions';
 import { MatchHeader } from '@/app/(main)/_components/match-header';
 import { TeamDetails } from '@/app/(main)/_components/team-details';
 import { Toss } from '@/app/(main)/_components/toss';
 import { Loader } from '@/components/loader/loader';
 import { queryClient } from '@/components/providers/query-provider';
 import { Button } from '@/components/ui/button';
-import { useGetMatchDetails } from '@/hooks/useGetMatchDetails';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 
 const MatchPage = () => {
   const params = useParams();
 
-  const { data: res, isLoading } = useGetMatchDetails();
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['matchDetails'],
+    queryFn: () =>
+      getAPI(`/api/matches/getMatch/${params.tournamentId}/${params.matchId}`),
+  });
 
-  const handleRunClick = async (run: number) => {
-    try {
-      if (run < 0 || run > 6) {
-        return toast.error('Please select run!');
-      }
-
-      const res = await updateRun({
-        tournamentId: params.tournamentId as string,
-        matchId: params.matchId as string,
-        run: run,
-      });
-
-      if (!res.status) {
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      postAPI(
+        `/api/matches/patchRun/${params.tournamentId}/${params.matchId}`,
+        data
+      ),
+    onSuccess: (res) => {
+      if (!res.success) {
         return toast.error(res.message);
       }
 
+      toast.success(res.message);
+
       queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast.error(error.message);
+    },
+  });
+
+  const handleRunClick = async (run: number) => {
+    if (run < 0 || run > 6) {
+      return toast.error('Please select run!');
     }
+
+    mutation.mutate({ run });
   };
 
-  if (isLoading) {
+  if (isLoading || mutation.isPending) {
     return <Loader />;
   }
 
-  if (!res?.data?.match?.id?.length) {
+  if (isError || !res?.data?.match?.id?.length) {
     return null;
   }
 

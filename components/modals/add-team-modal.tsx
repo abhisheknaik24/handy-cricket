@@ -1,6 +1,6 @@
 'use client';
 
-import { postTournamentTeam } from '@/actions/postTournamentTeam';
+import { getAPI, postAPI } from '@/actions/actions';
 import {
   Dialog,
   DialogContent,
@@ -15,8 +15,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useModal } from '@/hooks/use-modal-store';
-import { useGetTeams } from '@/hooks/useGetTeams';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import { memo } from 'react';
 import { useForm } from 'react-hook-form';
@@ -45,9 +45,40 @@ export const AddTeamModal = memo(function AddTeamModal() {
 
   const { type, isOpen, onClose } = useModal();
 
-  const { data: teamsRes, isLoading: isTeamsLoading } = useGetTeams();
-
   const isModalOpen = isOpen && type === 'addTeam';
+
+  const {
+    data: res,
+    isLoading: isTeamsLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['teams'],
+    queryFn: () => getAPI('/api/teams'),
+  });
+
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      postAPI(
+        `/api/tournaments/postTournamentTeam/${params.tournamentId}`,
+        data
+      ),
+    onSuccess: (res) => {
+      if (!res.success) {
+        return toast.error(res.message);
+      }
+
+      toast.success(res.message);
+
+      form.reset();
+
+      queryClient.invalidateQueries({ queryKey: ['tournamentTeams'] });
+
+      onClose();
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -59,33 +90,14 @@ export const AddTeamModal = memo(function AddTeamModal() {
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    try {
-      const res = await postTournamentTeam({
-        ...values,
-        tournamentId: params.tournamentId as string,
-      });
-
-      if (!res.status) {
-        return toast.error(res.message);
-      }
-
-      toast.success(res.message);
-
-      form.reset();
-
-      queryClient.invalidateQueries({ queryKey: ['tournamentTeams'] });
-
-      onClose();
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+    mutation.mutate(values);
   };
 
-  if (isTeamsLoading) {
+  if (isTeamsLoading || mutation.isPending) {
     return <Loader />;
   }
 
-  if (!isModalOpen || !teamsRes?.data?.teams?.length) {
+  if (!isModalOpen || isError || !res?.data?.teams?.length) {
     return null;
   }
 
@@ -113,8 +125,12 @@ export const AddTeamModal = memo(function AddTeamModal() {
                         <SelectValue placeholder='Name' />
                       </SelectTrigger>
                       <SelectContent position='item-aligned'>
-                        {teamsRes?.data?.teams?.map((team: any) => (
-                          <SelectItem key={team?.id} className='capitalize' value={team?.id}>
+                        {res?.data?.teams?.map((team: any) => (
+                          <SelectItem
+                            key={team?.id}
+                            className='capitalize'
+                            value={team?.id}
+                          >
                             {team?.name}
                           </SelectItem>
                         ))}

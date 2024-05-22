@@ -1,15 +1,27 @@
+import { getAPI } from '@/actions/actions';
 import { Loader } from '@/components/loader/loader';
-import { useGetQualifier } from '@/hooks/useGetPointsTable copy';
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
 import { QualifierTeamsCard } from './qualifier-teams-card';
 
 export const Qualifier = () => {
-  const { data: res, isLoading } = useGetQualifier();
+  const params = useParams();
+
+  const {
+    data: res,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ['qualifier'],
+    queryFn: () =>
+      getAPI(`/api/tournaments/getTournamentQualifier/${params.tournamentId}`),
+  });
 
   if (isLoading) {
     return <Loader />;
   }
 
-  if (!res?.data?.matches?.length) {
+  if (isError || !res?.data?.matches?.length) {
     return null;
   }
 

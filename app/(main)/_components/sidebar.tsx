@@ -1,13 +1,12 @@
 'use client';
 
-import { postMatches } from '@/actions/postMatches';
+import { getAPI, postAPI } from '@/actions/actions';
 import { Loader } from '@/components/loader/loader';
 import { queryClient } from '@/components/providers/query-provider';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useModal } from '@/hooks/use-modal-store';
-import { useGetMatches } from '@/hooks/useGetMatches';
-import { useGetTournamentTeams } from '@/hooks/useGetTournamentTeams';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { SidebarItem } from './sidebar-item';
@@ -15,33 +14,55 @@ import { SidebarItem } from './sidebar-item';
 export const Sidebar = () => {
   const params = useParams();
 
-  const { data: tournamentTeamsRes, isLoading: isTournamentTeamsLoading } =
-    useGetTournamentTeams();
+  const {
+    data: tournamentTeamsRes,
+    isLoading: isTournamentTeamsLoading,
+    isError: isTournamentTeamsError,
+  } = useQuery({
+    queryKey: ['tournamentTeams'],
+    queryFn: () =>
+      getAPI(`/api/tournaments/getTournamentTeams/${params.tournamentId}`),
+  });
 
-  const { data: matchesRes, isLoading: isMatchesLoading } = useGetMatches();
+  const {
+    data: matchesRes,
+    isLoading: isMatchesLoading,
+    isError: isMatchesError,
+  } = useQuery({
+    queryKey: ['matches'],
+    queryFn: () =>
+      getAPI(`/api/matches/${params.tournamentId}/${params.teamId}`),
+  });
 
   const { onOpen } = useModal();
 
-  const handleMakeMatchesClick = async () => {
-    try {
-      const res = await postMatches({
-        tournamentId: params.tournamentId as string,
-      });
-
-      if (!res.status) {
+  const mutation = useMutation({
+    mutationFn: (data: any) =>
+      postAPI(`/api/matches/${params.tournamentId}`, data),
+    onSuccess: (res) => {
+      if (!res.success) {
         return toast.error(res.message);
       }
 
       toast.success(res.message);
 
       queryClient.invalidateQueries({ queryKey: ['matches'] });
-    } catch (error: any) {
+    },
+    onError: (error) => {
       toast.error(error.message);
-    }
+    },
+  });
+
+  const handleMakeMatchesClick = async () => {
+    mutation.mutate({});
   };
 
-  if (isTournamentTeamsLoading || isMatchesLoading) {
+  if (isTournamentTeamsLoading || isMatchesLoading || mutation.isPending) {
     return <Loader />;
+  }
+
+  if (isTournamentTeamsError || isMatchesError) {
+    return null;
   }
 
   return (

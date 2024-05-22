@@ -1,7 +1,8 @@
-import { updateTeamChooseFirst } from '@/actions/updateTeamChooseFirst';
-import { updateToss } from '@/actions/updateToss';
+import { patchAPI } from '@/actions/actions';
+import { Loader } from '@/components/loader/loader';
 import { queryClient } from '@/components/providers/query-provider';
 import { Button } from '@/components/ui/button';
+import { useMutation } from '@tanstack/react-query';
 import { useParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -18,48 +19,61 @@ export const Toss = ({
 }: Props) => {
   const params = useParams();
 
+  const tossMutation = useMutation({
+    mutationFn: (data: any) =>
+      patchAPI(
+        `/api/matches/patchToss/${params.tournamentId}/${params.matchId}`,
+        data
+      ),
+    onSuccess: (res) => {
+      if (!res.success) {
+        return toast.error(res.message);
+      }
+
+      toast.success(res.message);
+
+      queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
+  const tossChooseMutation = useMutation({
+    mutationFn: (data: any) =>
+      patchAPI(
+        `/api/matches/patchTossChoose/${params.tournamentId}/${params.matchId}`,
+        data
+      ),
+    onSuccess: (res) => {
+      if (!res.success) {
+        return toast.error(res.message);
+      }
+
+      toast.success(res.message);
+
+      queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const handleTossClick = async () => {
-    try {
-      const res = await updateToss({
-        tournamentId: params.tournamentId as string,
-        matchId: params.matchId as string,
-      });
-
-      if (!res.status) {
-        return toast.error(res.message);
-      }
-
-      toast.success(res.message);
-
-      queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
-    } catch (error: any) {
-      toast.error(error.message);
-    }
+    tossMutation.mutate({});
   };
 
-  const handleSelectTeamChooseFirstClick = async (teamChooseFirst: string) => {
-    try {
-      if (!teamChooseFirst?.length) {
-        return toast.error('Please select what you do first!');
-      }
-
-      const res = await updateTeamChooseFirst({
-        tournamentId: params.tournamentId as string,
-        matchId: params.matchId as string,
-        teamChooseFirst: teamChooseFirst,
-      });
-
-      if (!res.status) {
-        return toast.error(res.message);
-      }
-
-      toast.success(res.message);
-
-      queryClient.invalidateQueries({ queryKey: ['matchDetails'] });
-    } catch (error: any) {
-      toast.error(error.message);
+  const handleTossChooseClick = async (tossChoose: string) => {
+    if (!tossChoose?.length) {
+      return toast.error('Please select what you do first!');
     }
+
+    tossMutation.mutate({ tossChoose });
   };
+
+  if (tossMutation.isPending || tossChooseMutation.isPending) {
+    return <Loader />;
+  }
 
   return (
     <>
@@ -83,14 +97,14 @@ export const Toss = ({
               <Button
                 size='lg'
                 variant='secondary'
-                onClick={() => handleSelectTeamChooseFirstClick('bat')}
+                onClick={() => handleTossChooseClick('bat')}
               >
                 Bat
               </Button>
               <Button
                 size='lg'
                 variant='secondary'
-                onClick={() => handleSelectTeamChooseFirstClick('bowl')}
+                onClick={() => handleTossChooseClick('bowl')}
               >
                 Bowl
               </Button>
